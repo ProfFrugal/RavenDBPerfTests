@@ -61,11 +61,7 @@ namespace TestRavenDB
 
             QueryData(store);
 
-            Thread.Sleep(500);
-
-            DateTime now = DateTime.UtcNow;
-
-            long alloc = GC.GetAllocatedBytesForCurrentThread();
+            PerfStart();
 
             ValueTuple<int, int> result = (0, 0);
 
@@ -74,17 +70,7 @@ namespace TestRavenDB
                 result = QueryData(store);
             }
 
-            double totalTime = (DateTime.UtcNow - now).TotalMilliseconds;
-            int totalItem = result.Item2 * repetition;
-
-            Console.WriteLine("{0:N2} ms, {1:N0} / {2:N0} x {3}",
-                totalTime, result.Item1, result.Item2, repetition);
-            Console.WriteLine("{0:N2} μs per item", totalTime * 1000 / totalItem);
-
-            alloc = GC.GetAllocatedBytesForCurrentThread() - alloc;
-
-            Console.WriteLine("Allocation: {0:N0} bytes, {1:N2} per item", alloc, alloc / totalItem);
-            Console.WriteLine("Memory usage: {0:N2} mb", GC.GetTotalMemory(false) / 1024 / 1024.0);
+            PerfStop(result.Item2, repetition);
         }
 
         public static ValueTuple<int, int> QueryData(DocumentStore store)
@@ -99,9 +85,9 @@ namespace TestRavenDB
                 foreach (var e in employees)
                 {
                     total++;
-                    string last = e.LastName;
+                    string first = e.FirstName;
 
-                    if (last[last.Length - 1] == '0')
+                    if (first[first.Length - 1] == '0')
                     {
                         count++;
                     }
@@ -113,12 +99,12 @@ namespace TestRavenDB
 
         public static void DeleteData(DocumentStore store)
         {
+            PerfStart();
+
+            int count = 0;
+
             using (var session = store.OpenSession())
             {
-                DateTime now = DateTime.Now;
-
-                int count = 0;
-
                 var employees = session.Query<Employee>();
 
                 foreach (var e in employees)
@@ -129,15 +115,15 @@ namespace TestRavenDB
                 }
 
                 session.SaveChanges();
-
-                var duration = DateTime.Now - now;
-
-                Console.WriteLine("{0:N0} records deleted in {1} ms", count, duration.TotalMilliseconds);
             }
+
+            PerfStop(count, 1);
         }
 
         public static void GenerateData(DocumentStore store, int count = 10000)
         {
+            PerfStart();
+
             using (var session = store.OpenSession())
             {
                 for (int i = 0; i < count; i++)
@@ -154,7 +140,33 @@ namespace TestRavenDB
 
                 session.SaveChanges();
             }
+
+            PerfStop(count, 1);
         }
 
+        static DateTime now;
+        static long alloc;
+
+        public static void PerfStart()
+        {
+            Thread.Sleep(500);
+
+            now = DateTime.UtcNow;
+
+            long alloc = GC.GetAllocatedBytesForCurrentThread();
+        }
+
+        public static void PerfStop(int count, int repeat)
+        {
+            double totalTime = (DateTime.UtcNow - now).TotalMilliseconds;
+            alloc = GC.GetAllocatedBytesForCurrentThread() - alloc;
+
+            long totalItem = count * repeat;
+
+            Console.WriteLine("{0:N2} ms, {1:N0} x {2}", totalTime, count, repeat);
+            Console.WriteLine("{0:N2} μs per item", totalTime * 1000 / totalItem);
+            Console.WriteLine("Allocation: {0:N0} bytes, {1:N2} per item", alloc, alloc / totalItem);
+            Console.WriteLine("Memory usage: {0:N2} mb", GC.GetTotalMemory(false) / 1024 / 1024.0);
+        }
     }
 }
