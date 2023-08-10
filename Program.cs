@@ -153,7 +153,7 @@ namespace TestRavenDB
 
             now = DateTime.UtcNow;
 
-            long alloc = GC.GetAllocatedBytesForCurrentThread();
+            alloc = GC.GetAllocatedBytesForCurrentThread();
         }
 
         public static void PerfStop(int count, int repeat)
